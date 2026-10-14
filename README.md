@@ -17,8 +17,8 @@ Open the same URL on two devices. Use exactly the same password (case and spaces
 ## Architecture
 
 - Leaflet 1.9.4 and standard OpenStreetMap raster tiles render the map with attribution.
-- Trystero 0.26.0 uses its public Nostr relay discovery strategy and default STUN servers.
-- The room ID is SHA-256 of a versioned app prefix plus the exact password. The password is also passed to Trystero to encrypt signaling. Choose a long, unpredictable password: a digest does not prevent guessing weak passwords.
+- p2p-core v0.1.0 provides same-browser discovery and public Nostr relay discovery with direct WebRTC (using its pinned, bundled Trystero). Online mode disables local server discovery. Messages use the p2p-core send/onMessage API, with protocol validation, a 2 KiB limit and a five-message-per-second receive limit.
+- The room ID is SHA-256 of a versioned app prefix plus the exact password. The password is also passed to p2p-core to isolate every transport and encrypt Trystero signaling. Choose a long, unpredictable password: a digest does not prevent guessing weak passwords.
 - Connected browsers share only their own nickname, coordinates, accuracy and fix timestamp over encrypted WebRTC. A new peer receives the current state immediately; a ten-second heartbeat keeps presence fresh.
 - Passwords and locations are never stored by this app, included in URLs, or sent to analytics. Received nicknames are rendered as text, not HTML. Incoming messages are size-limited and validated.
 - Accuracy circles show GPS uncertainty. Markers fade after 45 seconds without a fresh fix and disappear after two minutes. Disconnected peers are removed immediately when detected. No route history is kept.

@@ -1,7 +1,7 @@
 import {roomIdFor, validPresence, STALE_MS, EXPIRE_MS} from './protocol.js';
 
 const $ = id => document.getElementById(id);
-let L, map, joinRoom, room, action, watchId, heartbeat, sweep, me, generation = 0;
+let L, map, joinRoom, room, watchId, heartbeat, sweep, me, generation = 0;
 const peers = new Map(), markers = new Map(), connected = new Set();
 const status = text => $('status').textContent = text;
 const notice = text => $('notice').textContent = text;
@@ -37,10 +37,10 @@ function render() {
     li.append(button,info);list.append(li);putMarker(id,p);
   }
 }
-function send(target) { if(action && me) action.send(me,target?{target}:undefined).catch(()=>notice('An update could not be sent. Waiting for the connection to recover.')); }
+function send(target) { if(room && me) room.send('presence',me,target).catch(()=>notice('An update could not be sent. Waiting for the connection to recover.')); }
 function stop() {
   generation++;if(watchId!==undefined)navigator.geolocation.clearWatch(watchId);watchId=undefined;
-  clearInterval(heartbeat);clearInterval(sweep);room?.leave();room=action=me=null;
+  clearInterval(heartbeat);clearInterval(sweep);room?.leave();room=me=null;
   peers.clear();connected.clear();for(const id of markers.keys())removeMarker(id);
   $('session').hidden=true;$('join-form').hidden=false;$('join').disabled=!joinRoom;
   $('password').value='';notice('');status('Sharing stopped. Join a room to start again.');
@@ -53,20 +53,18 @@ async function join(event){
   $('join').disabled=true;const token=++generation;status('Opening your room…');
   try{
     const roomId=await roomIdFor(password);if(token!==generation)return;
-    room=joinRoom({appId:'dev.kakkoi.together-map.v1',password,maxReceiveBytes:16384},roomId,{
-      onJoinError:()=>{if(token===generation)notice('A peer could not connect. Check the password or try another network.');}
-    });
-    action=room.makeAction('presence',{onReceive:({byteLength})=>byteLength<=2048});
+    room=joinRoom({app:'dev.kakkoi.together-map.v1',room:roomId,password,mode:'online',server:false,protocol:1,kinds:['presence'],maxMessageBytes:2048,rateLimit:5,validate:{presence:validPresence}});
+    room.onError(()=>{if(token===generation)notice('A connection error occurred. Check your network; discovery will keep trying.');});
     me={v:1,name,position:null};
-    action.onMessage=(data,{peerId})=>{
+    room.onMessage('presence',(data,peerId)=>{
       if(token!==generation || !connected.has(peerId) || !validPresence(data))return;
       const previous=peers.get(peerId);
       if(data.position && previous?.position && data.position.timestamp<previous.position.timestamp)return;
       if(data.position?.timestamp>Date.now()+30_000)return;
       peers.set(peerId,{...data,seenAt:Date.now()});render();
-    };
-    room.onPeerJoin=peerId=>{if(token!==generation)return;connected.add(peerId);peers.set(peerId,{v:1,name:'Connecting…',position:null,seenAt:Date.now()});send(peerId);render();};
-    room.onPeerLeave=peerId=>{if(token!==generation)return;connected.delete(peerId);peers.delete(peerId);removeMarker(peerId);render();};
+    });
+    room.onPeerJoin(peerId=>{if(token!==generation)return;connected.add(peerId);peers.set(peerId,{v:1,name:'Connecting…',position:null,seenAt:Date.now()});send(peerId);render();});
+    room.onPeerLeave(peerId=>{if(token!==generation)return;connected.delete(peerId);peers.delete(peerId);removeMarker(peerId);render();});
     $('password').value='';$('identity').textContent=name;$('join-form').hidden=true;$('session').hidden=false;
     status('Waiting for location permission. Others can join with the same password.');render();
     watchId=navigator.geolocation.watchPosition(position=>{
@@ -95,6 +93,6 @@ try{
   L=window.L;map=L.map('map',{zoomControl:false}).setView([35.36,132.75],5);L.control.zoom({position:'topright'}).addTo(map);
   const tiles=L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'}).addTo(map);
   tiles.on('tileerror',()=>notice('Map tiles could not load. Location sharing can still work.'));
-  ({joinRoom}=await import('https://esm.run/trystero@0.26.0'));
+  ({joinRoom}=await import('https://cdn.jsdelivr.net/gh/KakkoiDev/p2p-core@v0.1.0/p2p-core.js'));
   $('join').disabled=false;
 }catch{status('Could not load the map or connection library. Check your network and reload.');}

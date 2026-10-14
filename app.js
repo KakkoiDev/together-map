@@ -1,4 +1,4 @@
-import {roomIdFor, validPresence, STALE_MS, EXPIRE_MS} from './protocol.js';
+import {roomIdFor, validPresence, STALE_MS, EXPIRE_MS, roomFromUrl, roomLink} from './protocol.js';
 
 const $ = id => document.getElementById(id);
 let L, map, joinRoom, room, watchId, heartbeat, sweep, me, generation = 0;
@@ -20,7 +20,7 @@ function putMarker(id, person) {
     item = {marker,circle,label};markers.set(id,item);
     marker.getElement().style.setProperty('--peer-color',hue);
   }
-  item.label.textContent = person.name + (id==='self'?' · you':'');
+  item.label.textContent = (person.emoji || '◎') + ' ' + person.name + (id==='self'?' · you':'');
   item.marker.setLatLng([p.lat,p.lng]);item.circle.setLatLng([p.lat,p.lng]).setRadius(p.accuracy);
   item.marker.getElement().classList.toggle('stale',Date.now()-p.timestamp>STALE_MS);
 }
@@ -30,7 +30,7 @@ function render() {
   for(const [id,p] of [['self',me],...peers]){
     if(!p)continue;
     const li=document.createElement('li'),button=document.createElement('button'),info=document.createElement('span');
-    button.textContent=p.name+(id==='self'?' · you':'');button.disabled=!p.position;
+    button.textContent=(p.emoji || '◎')+' '+p.name+(id==='self'?' · you':'');button.disabled=!p.position;
     button.onclick=()=>map.setView([p.position.lat,p.position.lng],16);
     const age=p.position?Math.max(0,Math.floor((Date.now()-p.position.timestamp)/1000)):null;
     info.textContent=age===null?'No location yet':`${age}s ago · ±${Math.round(p.position.accuracy)}m`;
@@ -47,15 +47,16 @@ function stop() {
 }
 async function join(event){
   event.preventDefault();if(!joinRoom)return;
-  const name=$('nickname').value.trim(),password=$('password').value;
+  const name=$('nickname').value.trim(),password=$('password').value, roomName=$('room-id').value.trim(), emoji=$('emoji').value;
+  if(!roomName){$('room-id').focus();return;}
   if(!name){$('nickname').focus();return;}
   if(!navigator.geolocation || !isSecureContext){status('Location sharing requires HTTPS and browser geolocation support.');return;}
   $('join').disabled=true;const token=++generation;status('Opening your room…');
   try{
-    const roomId=await roomIdFor(password);if(token!==generation)return;
-    room=joinRoom({app:'dev.kakkoi.together-map.v1',room:roomId,password,mode:'online',server:false,protocol:1,kinds:['presence'],maxMessageBytes:2048,rateLimit:5,validate:{presence:validPresence}});
+    const roomId=await roomIdFor(password,roomName);if(token!==generation)return;
+    room=joinRoom({app:'dev.kakkoi.together-map.v1',room:roomId,password,mode:'online',server:false,protocol:2,kinds:['presence'],maxMessageBytes:2048,rateLimit:5,validate:{presence:validPresence}});
     room.onError(()=>{if(token===generation)notice('A connection error occurred. Check your network; discovery will keep trying.');});
-    me={v:1,name,position:null};
+    me={v:2,name,emoji,position:null};
     room.onMessage('presence',(data,peerId)=>{
       if(token!==generation || !connected.has(peerId) || !validPresence(data))return;
       const previous=peers.get(peerId);
@@ -65,7 +66,7 @@ async function join(event){
     });
     room.onPeerJoin(peerId=>{if(token!==generation)return;connected.add(peerId);peers.set(peerId,{v:1,name:'Connecting…',position:null,seenAt:Date.now()});send(peerId);render();});
     room.onPeerLeave(peerId=>{if(token!==generation)return;connected.delete(peerId);peers.delete(peerId);removeMarker(peerId);render();});
-    $('password').value='';$('identity').textContent=name;$('join-form').hidden=true;$('session').hidden=false;
+    $('password').value='';history.replaceState(null,'',roomLink(location.href,roomName));$('identity').textContent=emoji+' '+name;$('join-form').hidden=true;$('session').hidden=false;
     status('Waiting for location permission. Others can join with the same password.');render();
     watchId=navigator.geolocation.watchPosition(position=>{
       if(token!==generation)return;
@@ -82,6 +83,8 @@ async function join(event){
     sweep=setInterval(()=>{for(const [id,p] of peers){if(Date.now()-p.seenAt>EXPIRE_MS){peers.delete(id);removeMarker(id);}else if(p.position && Date.now()-p.position.timestamp>EXPIRE_MS){p.position=null;removeMarker(id);}}render();},5000);
   }catch(error){if(token!==generation)return;stop();status('Could not open the room. Check your connection and try again.');console.error('Room setup failed',error.name);}
 }
+$('room-id').value=roomFromUrl(location.href);
+$('copy-link').onclick=async()=>{try{await navigator.clipboard.writeText(roomLink(location.href,$('room-id').value.trim()));notice('Room link copied. Send the password separately.');}catch{notice('Copy the room URL from your address bar. Send the password separately.');}};
 $('join-form').addEventListener('submit',join);$('leave').onclick=stop;
 $('locate').onclick=()=>{if(me?.position)map.setView([me.position.lat,me.position.lng],16);else status('Join and allow location access to center on yourself.');};
 $('fit').onclick=()=>{const points=[...markers.values()].map(x=>x.marker.getLatLng());if(points.length)map.fitBounds(L.latLngBounds(points),{paddingTopLeft:[innerWidth>600?390:40,innerWidth>600?40:320],paddingBottomRight:[50,50],maxZoom:16});};

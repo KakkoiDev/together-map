@@ -12,7 +12,9 @@
   <section class="panel" aria-label="Location sharing">
     <header><span class="logo" aria-hidden="true">◎</span><div><h1>Together</h1><p>A shared place, wherever you are.</p></div></header>
     <form id="join-form">
-      <label for="nickname">Your nickname</label><input id="nickname" maxlength="32" autocomplete="nickname" placeholder="e.g. Ahiru" required>
+      <label for="nickname">Your username</label><input id="nickname" maxlength="32" autocomplete="username" placeholder="e.g. Ahiru" required>
+      <label for="emoji">Your emoji</label><select id="emoji"><option>🦆</option><option>🐱</option><option>🐶</option><option>🐸</option><option>🦊</option><option>🐼</option><option>🐧</option><option>🐙</option><option>🌸</option><option>⭐</option><option>🚀</option><option>🤖</option></select>
+      <label for="room-id">Room ID</label><input id="room-id" maxlength="64" placeholder="e.g. izumo-walk" required>
       <label for="password">Shared password</label><input id="password" type="password" minlength="8" maxlength="128" autocomplete="off" placeholder="Use the same password as your friends" required>
       <p class="hint">Anyone with this password can see your location while you share. Choose a long, unique phrase. Nothing is saved.</p>
       <button id="join" type="submit">Join & share my location <span aria-hidden="true">↗</span></button>
@@ -21,6 +23,7 @@
       <div class="session-heading"><strong id="identity"></strong><span class="badge" id="count">Just you</span></div>
       <p class="hint">Keep this page open. Phone background updates may pause.</p>
       <div class="actions"><button id="fit" class="secondary">Show everyone</button><button id="leave" class="secondary danger">Stop sharing</button></div>
+      <button id="copy-link" class="secondary" style="width:100%;margin-top:10px">Copy room link</button>
       <details><summary>People in this room</summary><ul id="people"></ul></details>
     </div>
     <p id="status" role="status" aria-live="polite">Enter a nickname and password to meet on the map.</p>

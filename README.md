@@ -1,6 +1,6 @@
 # Together map
 
-A full-screen live map for small groups. Enter a nickname and the same password on each device, allow location access, and see each other's current positions. No accounts, build step, application backend, or saved location history.
+A full-screen live map for small groups. Choose a username and emoji, enter the same room ID and password on each device, allow location access, and see each other's current positions. No accounts, build step, application backend, or saved location history.
 
 ## GitHub Pages
 
@@ -38,3 +38,5 @@ Run `npm test` (Node 22+; no installation required). Serve with `python3 -m http
 Manual acceptance: test two tabs, then two phones on different networks; verify same-password connection, different-password isolation, late joining, movement, denied GPS permission, stop sharing, tab close, stale locations and reconnection. CDN, map, GPS and real network behavior must be checked in a browser; protocol tests alone do not verify them.
 
 References: https://trystero.dev/docs/ and https://trystero.dev/docs/connections/
+
+Room links use `?room=izumo-walk`. The room field is prefilled from the URL and updated when joining. Copy room link shares only that room ID; send the password separately. Both room ID and password must match. Emoji choices appear in map labels and the people list.
